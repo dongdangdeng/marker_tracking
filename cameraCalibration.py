@@ -21,7 +21,7 @@ pattern_points *= square_size
 objpoints = []
 imgpoints = []
 
-capture = cv2.VideoCapture("src/mov/calibration_iphonese_2.mp4")
+capture = cv2.VideoCapture("src/mov/calibration_pc.mp4")
 
 totalframecount = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))    # 総フレーム数
 reference_frame = int(totalframecount / reference_img)   # 何フレームごとに判定するか
