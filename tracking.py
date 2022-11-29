@@ -41,7 +41,7 @@ def apllyFilters(img):
     return img_sp
 
 
-cap = cv2.VideoCapture("src/mov/test02.mp4")
+cap = cv2.VideoCapture("src/mov/test06.mp4")
 
 if not (cap.isOpened()):   # 正常に読み込めなかった場合終了する（VideoCaptureコンストラクタ自体は失敗してもFalseを返さないので注意）
     sys.exit()

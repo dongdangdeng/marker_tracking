@@ -8,9 +8,9 @@ import tqdm
 
 random.seed(0)
 
-IS_DEBUG = False
+IS_DEBUG = True
 
-input_video_path = "src/mov/test05.mp4"
+input_video_path = "src/mov/test06.mp4"
 cap = cv2.VideoCapture(input_video_path)
 fps = int(cap.get(cv2.CAP_PROP_FPS))    # 動画のfps
 # current_frame = 1   # 現在の動画フレーム
@@ -45,7 +45,9 @@ output_path = "output/test/markers.csv"
 
 print("parsing markers...")
 for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
-
+    IS_DEBUG and print("frame: " + str(current_frame))
+    if current_frame == 100:
+        print("stop")
     ret, img = cap.read()
     if not ret:
         break
@@ -107,7 +109,7 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
             markers_current = pd.concat(
                 markers_tmp, axis=1, keys=np.squeeze(ids))
 
-        markers_hist = pd.concat(
+        markers_hist = pd.concat(   # TODO markers_currentの値がNaNしかない場合、markers_tmpの内容が何であれNaNになってしまう？
             [markers_hist, markers_current], ignore_index=True)
     else:  # マーカーが1つも検出できなかった場合
         markers_hist.loc[current_frame] = np.nan
@@ -119,8 +121,8 @@ markers_hist.sort_index(level=0, axis=1, inplace=True)
 if DELETE_KEY in markers_hist.columns:  # 不要な行を削除
     markers_hist = markers_hist.drop(DELETE_KEY, axis=1)
 
-print("Complementing missing values...")
 # 欠損値をスプライン補完
+print("Complementing missing values...")
 for col in tqdm.tqdm(markers_hist.columns):
     if (total_frame - markers_hist[col].isnull().sum()) >= 4:
         markers_hist[col] = markers_hist[col].interpolate(
