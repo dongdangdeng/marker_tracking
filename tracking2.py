@@ -2,22 +2,37 @@ import numpy as np
 import cv2
 from cv2 import aruco
 import pandas as pd
-import matplotlib.colors as mcolors
 import random
 import tqdm
+import datetime
+import sys
 
 random.seed(0)
 
 IS_DEBUG = False
 
+# 解析する動画のパス
 input_video_path = "src/mov/VibrationTest/oricon_g_hd_240.mp4"
+print("loading '" + input_video_path + "'")
 cap = cv2.VideoCapture(input_video_path)
+if not (cap.isOpened()):
+    print("video loading error")
+    sys.exit()
 fps = int(cap.get(cv2.CAP_PROP_FPS))    # 動画のfps
-# current_frame = 1   # 現在の動画フレーム
 total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))    # 総フレーム数
 
+# 日付取得（ファイル名用）
+t_delta = datetime.timedelta(hours=9)
+JST = datetime.timezone(t_delta, 'JST')
+now = datetime.datetime.now(JST)
+# YYYYMMDDhhmmss形式に書式化
+d = now.strftime('%Y%m%d%H%M%S')
+
+# 出力csvのパス
+output_path = "output/test/markers_" + d + ".csv"
+
 # マーカーサイズ
-marker_length = 0.0255  # [m]
+marker_length = 0.044  # [m]
 # マーカーの辞書選択
 dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
 
@@ -33,14 +48,6 @@ orbit_length = 100
 
 # マーカーの履歴（初期状態でマルチカラムのDFをconcatしてもエラーにならないように最低限フォーマットを整える）
 markers_hist = pd.DataFrame([np.nan], columns=[[DELETE_KEY], [0]])
-
-# matplotlibのカラーテーブルを持ってくる（148色分）
-colors = list(map(lambda color: tuple(map(lambda c: int(c * 255),
-              mcolors.to_rgb(color))), mcolors.CSS4_COLORS.values()))
-random.shuffle(colors)
-
-# 出力csvのパス
-output_path = "output/test/markers.csv"
 
 
 print("parsing markers...")
