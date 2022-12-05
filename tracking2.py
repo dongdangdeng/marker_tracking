@@ -2,12 +2,9 @@ import numpy as np
 import cv2
 from cv2 import aruco
 import pandas as pd
-import random
 import tqdm
 import datetime
 import sys
-
-random.seed(0)
 
 IS_DEBUG = False                      # デバッグモード
 IS_COMPLEMENT_MISSING_VALUES = False  # 欠損値の補完を行うか
@@ -46,9 +43,6 @@ distortion_coeff = np.load("calibration/iphonese/dist.npy")
 # DFの不要な行（後で消す）につけるkey名称
 DELETE_KEY = -1
 
-# 軌跡の長さ
-orbit_length = 100
-
 # マーカーの履歴（初期状態でマルチカラムのDFをconcatしてもエラーにならないように最低限フォーマットを整える）
 markers_hist = pd.DataFrame([np.nan], columns=[[DELETE_KEY], [0]])
 
@@ -60,9 +54,23 @@ def applyFilters(img):
         [-k / 9, 1 + 8 * k / 9, k / 9],
         [-k / 9, -k / 9, -k / 9]
     ], np.float32)
-    img_bltrl = cv2.bilateralFilter(src=img, d=10, sigmaColor=75, sigmaSpace=75)
-    # img_sp = cv2.filter2D(img_bltrl, -1, sharp_kernel).astype("uint8")
-    return img_bltrl
+    img_bltrl = cv2.bilateralFilter(src=img, d=15, sigmaColor=75, sigmaSpace=75)
+    img_sp = cv2.filter2D(img_bltrl, -1, sharp_kernel).astype("uint8")
+    return img_sp
+
+"""
+cornersとidsの差分を追加したcornersとidsを返す。
+"""
+def addNewMarkers(current_ids, current_corners, new_corners, new_ids):
+    current_id_list = list(map(lambda id : id[0] , current_ids))
+    new_ids_list = list(map(lambda id : id[0] , new_ids))
+    origin_ids = [id for id in new_ids_list if id not in current_id_list]   # フィルター適用後のみ検出されたid
+    origin_id_indexes = [new_ids_list.index(i) for i in origin_ids]   # origin_idsのidに対応するindex
+    added_id_list = np.append(current_id_list, origin_ids)  # id_listに新しく検出されたidを追加
+    added_corners_list = list(current_corners)
+    for i in origin_id_indexes: # cornersに新しく検出された座標を追加
+        added_corners_list.append(new_corners[i])
+    return added_id_list, added_corners_list
 
 print("parsing markers...")
 for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
@@ -111,19 +119,7 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     if IS_APPLY_FILTERS:
         img_f = applyFilters(img)
         corners_f, ids_f, rejectedImgPoints_f = aruco.detectMarkers(img_f, dictionary)
-        ids_f_list = list(map(lambda id : id[0] , ids_f))
-        origin_ids = [id for id in ids_f_list if id not in id_list]   # フィルター適用後のみ検出されたid
-        origin_id_indexes = [ids_f_list.index(i) for i in origin_ids]   # origin_idsのidに対応するindex
-        id_list.extend(origin_ids)  # id_listに新しく検出されたidを追加
-        corners_list = list(corners)
-        for i in origin_id_indexes: # cornersに新しく検出された座標を追加
-            corners_list.append(corners_f[i])
-        if IS_DEBUG and len(origin_ids) > 0:
-            print(f'[{current_frame}] detect marker(s) on filterd img : {origin_ids}')
-        
-    ### DEBUG
-    # if len(ids) < len(ids_f):
-    #     from IPython.core.debugger import Pdb; Pdb().set_trace()
+        id_list, corners_list = addNewMarkers(ids, corners, corners_f, ids_f)
 
     markers_current = pd.DataFrame()
     markers_tmp = []
