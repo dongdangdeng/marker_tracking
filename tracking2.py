@@ -7,7 +7,7 @@ import datetime
 import sys
 
 IS_DEBUG = False                      # デバッグモード
-IS_COMPLEMENT_MISSING_VALUES = False  # 欠損値の補完を行うか
+IS_COMPLEMENT_MISSING_VALUES = True  # 欠損値の補完を行うか
 IS_APPLY_FILTERS = True               # 鮮鋭化フィルタを適用するか
 
 # 解析する動画のパス
@@ -197,11 +197,17 @@ if DELETE_KEY in markers_hist.columns:  # 不要な行を削除
 if IS_COMPLEMENT_MISSING_VALUES:
     print("Complementing missing values...")
     for col in tqdm.tqdm(markers_hist.columns):
-        if (total_frame - markers_hist[col].isnull().sum()) >= 4:
+        if (total_frame - markers_hist[col].isnull().sum()) >= 4:   # NaNではない値が4つ以上あれば補完実行
             markers_hist[col] = markers_hist[col].interpolate(
                 method="spline", order=2, limit_direction="both")
-            if (col[1] == "cpx" or col[1] == "cpy") and ~np.isnan(markers_hist[col][0]):
+            if (col[1] == "cpx" or col[1] == "cpy") and ~np.isnan(markers_hist[col][0]):    # cpx、cpyはintへ変換
                 markers_hist[col] = markers_hist[col].astype(int)
+
+# カラムのidをintに変換
+markers_hist.columns = markers_hist.columns.set_levels(
+    markers_hist.columns.levels[0].astype(int),
+    level=0
+    )
 
 markers_hist.to_csv(output_path)
 print("out put parsed markers '" + str(output_path) + "'")
