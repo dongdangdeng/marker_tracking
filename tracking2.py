@@ -77,9 +77,7 @@ def addNewMarkers(current_ids, current_corners, new_corners, new_ids):
 
 print("parsing markers...")
 for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
-    IS_DEBUG and print("frame: " + str(current_frame))
-    if IS_DEBUG and current_frame == 10:
-        print("stop")
+    IS_DEBUG and print(f"frame: {current_frame}")
     ret, img = cap.read()
     if not ret:
         break
@@ -210,4 +208,4 @@ markers_hist.columns = markers_hist.columns.set_levels(
     )
 
 markers_hist.to_csv(output_path)
-print("out put parsed markers '" + str(output_path) + "'")
+print(f"out put parsed markers '{output_path}'")
