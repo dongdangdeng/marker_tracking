@@ -47,16 +47,19 @@ DELETE_KEY = -1
 markers_hist = pd.DataFrame([np.nan], columns=[[DELETE_KEY], [0]])
 
 # 鮮鋭化フィルタ
-def applyFilters(img):
-    k = 2
+def applyFiltersSp(img, k=2):
     sharp_kernel = np.array([
         [-k / 9, -k / 9, -k / 9],
         [-k / 9, 1 + 8 * k / 9, k / 9],
         [-k / 9, -k / 9, -k / 9]
     ], np.float32)
-    img_bltrl = cv2.bilateralFilter(src=img, d=15, sigmaColor=75, sigmaSpace=75)
-    img_sp = cv2.filter2D(img_bltrl, -1, sharp_kernel).astype("uint8")
+    img_sp = cv2.filter2D(img, -1, sharp_kernel).astype("uint8")
     return img_sp
+
+# バイラテラルフィルタ
+def applyFiltersBltrl(img, d=15):
+    img_bltrl = cv2.bilateralFilter(src=img, d=d, sigmaColor=75, sigmaSpace=75)
+    return img_bltrl
 
 """
 cornersとidsの差分を追加したcornersとidsを返す。
@@ -117,9 +120,12 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     # フィルター適用処理
     # フィルター適用後のimgでのみ検出されたマーカーを追加
     if IS_APPLY_FILTERS:
-        img_f = applyFilters(img)
-        corners_f, ids_f, rejectedImgPoints_f = aruco.detectMarkers(img_f, dictionary)
-        id_list, corners_list = addNewMarkers(ids, corners, corners_f, ids_f)
+        #バイラテラルフィルタ
+        img_b = applyFiltersBltrl(img, 15)
+        # 鮮鋭化
+        img_s = applyFiltersSp(img_b, 2)
+        corners_s, ids_s, _ = aruco.detectMarkers(img_s, dictionary)
+        id_list, corners_list = addNewMarkers(ids, corners, corners_s, ids_s)
 
     markers_current = pd.DataFrame()
     markers_tmp = []
