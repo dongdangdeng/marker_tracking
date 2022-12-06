@@ -51,7 +51,7 @@ DELETE_KEY = -1
 markers_hist = pd.DataFrame([np.nan], columns=[[DELETE_KEY], [0]])
 
 # 鮮鋭化フィルタ
-def applyFiltersSp(img, k=2):
+def applySharpFilter(img, k=2):
     sharp_kernel = np.array([
         [-k / 9, -k / 9, -k / 9],
         [-k / 9, 1 + 8 * k / 9, k / 9],
@@ -61,16 +61,20 @@ def applyFiltersSp(img, k=2):
     return img_sp
 
 # バイラテラルフィルタ
-def applyFiltersBltrl(img, d=15):
+def applyBltrlFilter(img, d=15):
     img_bltrl = cv2.bilateralFilter(src=img, d=d, sigmaColor=75, sigmaSpace=75)
     return img_bltrl
+
+# メディアンフィルタ
+def applyMedianFilter(img, d=1):
+    return cv2.medianBlur(img, d)
 
 """
 cornersとidsの差分を追加したcornersとidsを返す。
 """
 def addNewMarkers(current_ids, current_corners, new_corners, new_ids):
-    current_id_list = list(map(lambda id : id[0] , current_ids))
-    current_corners_list = list(current_corners)
+    current_id_list = [] if current_ids is None else list(map(lambda id : id[0] , current_ids))
+    current_corners_list = [] if current_ids is None else list(current_corners)
     if new_ids is None: # 追加する方のデータ（new_~)がなにもない場合、currentを次元削減したものだけを返す
         return current_id_list, current_corners_list
     else:
@@ -94,9 +98,8 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(img, dictionary)
 
     # 同じidのマーカーが複数検知された際の処理（前回検知されたmarkerとの距離が近い方のみを残す）
-    # TODO 一応動いているがデータあっているか検証
     if ids is not None :
-        id_list = list(map(lambda id : id[0] , ids))   # idsの値をそのまま平のリストに変換
+        id_list = list(map(lambda id : int(id[0]) , ids))   # idsの値をそのまま平のリストに変換
         duplicate_ids = [x for x in set(id_list) if id_list.count(x) > 1]   # 重複しているidがあれば抜き出し
     else:
         id_list = []
@@ -127,9 +130,9 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     # フィルター適用後のimgでのみ検出されたマーカーを追加
     if IS_APPLY_FILTERS:
         #バイラテラルフィルタ
-        img_b = applyFiltersBltrl(img, 15)
+        img_b = applyBltrlFilter(img, 15)
         # 鮮鋭化
-        img_s = applyFiltersSp(img_b, 2)
+        img_s = applySharpFilter(img_b, 2)
         corners_s, ids_s, _ = aruco.detectMarkers(img_s, dictionary)
         id_list, corners_list = addNewMarkers(ids, corners, corners_s, ids_s)
 
