@@ -6,12 +6,16 @@ import tqdm
 import datetime
 import sys
 
-IS_DEBUG = False                      # デバッグモード
-IS_COMPLEMENT_MISSING_VALUES = True  # 欠損値の補完を行うか
-IS_APPLY_FILTERS = True               # 鮮鋭化フィルタを適用するか
+IS_DEBUG = False            # デバッグモード
+IS_INTERPOLATE = True       # 欠損値の補完を行うか
+INTERPOLATE_METHOD = {
+    0: "linear", 
+    1: "spline"
+    }[0]                    # 補完の種類
+IS_APPLY_FILTERS = True     # フィルタを適用するか
 
 # 解析する動画のパス
-input_video_path = "src/mov/VibrationTest/t_hd_60.mp4"
+input_video_path = "src/mov/VibrationTest/carton_g_hd_60.MOV"
 
 print("loading '" + input_video_path + "'")
 cap = cv2.VideoCapture(input_video_path)
@@ -66,14 +70,18 @@ cornersとidsの差分を追加したcornersとidsを返す。
 """
 def addNewMarkers(current_ids, current_corners, new_corners, new_ids):
     current_id_list = list(map(lambda id : id[0] , current_ids))
-    new_ids_list = list(map(lambda id : id[0] , new_ids))
-    origin_ids = [id for id in new_ids_list if id not in current_id_list]   # フィルター適用後のみ検出されたid
-    origin_id_indexes = [new_ids_list.index(i) for i in origin_ids]   # origin_idsのidに対応するindex
-    added_id_list = np.append(current_id_list, origin_ids)  # id_listに新しく検出されたidを追加
-    added_corners_list = list(current_corners)
-    for i in origin_id_indexes: # cornersに新しく検出された座標を追加
-        added_corners_list.append(new_corners[i])
-    return added_id_list, added_corners_list
+    current_corners_list = list(current_corners)
+    if new_ids is None: # 追加する方のデータ（new_~)がなにもない場合、currentを次元削減したものだけを返す
+        return current_id_list, current_corners_list
+    else:
+        new_ids_list = list(map(lambda id : id[0] , new_ids))
+        origin_ids = [id for id in new_ids_list if id not in current_id_list]   # フィルター適用後のみ検出されたid
+        origin_id_indexes = [new_ids_list.index(i) for i in origin_ids]   # origin_idsのidに対応するindex
+        added_id_list = np.append(current_id_list, origin_ids)  # id_listに新しく検出されたidを追加
+        added_corners_list = current_corners_list
+        for i in origin_id_indexes: # cornersに新しく検出された座標を追加
+            added_corners_list.append(new_corners[i])
+        return added_id_list, added_corners_list
 
 print("parsing markers...")
 for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
@@ -191,14 +199,14 @@ markers_hist.sort_index(level=0, axis=1, inplace=True)
 if DELETE_KEY in markers_hist.columns:  # 不要な行を削除
     markers_hist = markers_hist.drop(DELETE_KEY, axis=1)
 
-# 欠損値をスプライン補完
-if IS_COMPLEMENT_MISSING_VALUES:
-    print("Complementing missing values...")
+# 欠損値を補完
+if IS_INTERPOLATE:
+    print(f"Complementing missing values by {INTERPOLATE_METHOD} method...")
     for col in tqdm.tqdm(markers_hist.columns):
-        if (total_frame - markers_hist[col].isnull().sum()) >= 4:   # NaNではない値が4つ以上あれば補完実行
+        if (total_frame - markers_hist[col].isnull().sum()) >= 4:
             markers_hist[col] = markers_hist[col].interpolate(
-                method="spline", order=2, limit_direction="both")
-            if (col[1] == "cpx" or col[1] == "cpy") and ~np.isnan(markers_hist[col][0]):    # cpx、cpyはintへ変換
+                method=INTERPOLATE_METHOD, order=2, limit_direction="both")
+            if (col[1] == "cpx" or col[1] == "cpy") and ~np.isnan(markers_hist[col][0]):     # cpx、cpyはintへ変換
                 markers_hist[col] = markers_hist[col].astype(int)
 
 # カラムのidをintに変換
