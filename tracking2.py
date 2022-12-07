@@ -17,11 +17,21 @@ IS_APPLY_FILTERS = True     # フィルタを適用するか
 # 解析する動画のパス
 input_video_path = "src/mov/VibrationTest/base_4k_60.MOV"
 
+# 動画のmaxサイズ（これを超えるとリサイズ処理）
+h_max = 1080
+
 print("loading '" + input_video_path + "'")
 cap = cv2.VideoCapture(input_video_path)
 if not (cap.isOpened()):
     print("video loading error")
     sys.exit()
+
+w_origin = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+h_origin = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# 動画のheightがh_maxより大きければh_maxに合わせてリサイズ
+if h_origin > h_max:
+    h = h_max
+    w = int(w_origin * (h / h_origin))
 
 fps = int(cap.get(cv2.CAP_PROP_FPS))    # 動画のfps
 total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))    # 総フレーム数
@@ -38,6 +48,7 @@ output_path = "output/test/markers_" + d + ".csv"
 
 # マーカーサイズ
 marker_length = 0.044  # [m]
+
 # マーカーの辞書選択
 dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
 
@@ -94,16 +105,8 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     ret, img = cap.read()
     if not ret:
         break
-
-    # 動画サイズが大きすぎる場合はリサイズする
-    h, w = img.shape[:2]
-    h_max = 1080
-    if h > h_max:
-        ratio = h / w
-        w = h_max
-        h = int(h_max * ratio)
-        img = cv2.resize(img, dsize=(w, h))
-
+    img = cv2.resize(img, dsize=(w, h))
+    
     # マーカー認識
     corners, ids, rejectedImgPoints = aruco.detectMarkers(img, dictionary)
 
