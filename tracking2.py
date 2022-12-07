@@ -15,13 +15,14 @@ INTERPOLATE_METHOD = {
 IS_APPLY_FILTERS = True     # フィルタを適用するか
 
 # 解析する動画のパス
-input_video_path = "src/mov/VibrationTest/carton_g_hd_60.MOV"
+input_video_path = "src/mov/VibrationTest/base_4k_60.MOV"
 
 print("loading '" + input_video_path + "'")
 cap = cv2.VideoCapture(input_video_path)
 if not (cap.isOpened()):
     print("video loading error")
     sys.exit()
+
 fps = int(cap.get(cv2.CAP_PROP_FPS))    # 動画のfps
 total_frame = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))    # 総フレーム数
 
@@ -72,7 +73,7 @@ def applyMedianFilter(img, d=1):
 """
 cornersとidsの差分を追加したcornersとidsを返す。
 """
-def addNewMarkers(current_ids, current_corners, new_corners, new_ids):
+def addNewMarkers(current_ids, current_corners, new_corners=None, new_ids=None):
     current_id_list = [] if current_ids is None else list(map(lambda id : id[0] , current_ids))
     current_corners_list = [] if current_ids is None else list(current_corners)
     if new_ids is None: # 追加する方のデータ（new_~)がなにもない場合、currentを次元削減したものだけを返す
@@ -93,6 +94,15 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
     ret, img = cap.read()
     if not ret:
         break
+
+    # 動画サイズが大きすぎる場合はリサイズする
+    h, w = img.shape[:2]
+    h_max = 1080
+    if h > h_max:
+        ratio = h / w
+        w = h_max
+        h = int(h_max * ratio)
+        img = cv2.resize(img, dsize=(w, h))
 
     # マーカー認識
     corners, ids, rejectedImgPoints = aruco.detectMarkers(img, dictionary)
@@ -135,6 +145,8 @@ for current_frame in tqdm.tqdm(range(1, total_frame + 1)):
         img_s = applySharpFilter(img_b, 2)
         corners_s, ids_s, _ = aruco.detectMarkers(img_s, dictionary)
         id_list, corners_list = addNewMarkers(ids, corners, corners_s, ids_s)
+    else:
+         id_list, corners_list = addNewMarkers(ids, corners)
 
     markers_current = pd.DataFrame()
     markers_tmp = []
